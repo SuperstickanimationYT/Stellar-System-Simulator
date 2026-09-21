@@ -54,11 +54,10 @@ export function applyShockDissipation(
 ): number {
   if (!isDissipating(settings)) return 0;
 
-  const reachDistance = settings.reach * meanParticleSpacing(store);
-  if (reachDistance <= 0) return 0;
+  const fallbackSpacing = meanParticleSpacing(store);
+  if (fallbackSpacing <= 0) return 0;
 
   const removedFraction = 1 - Math.exp(-timestep / settings.timescale);
-  const reachSquared = reachDistance * reachDistance;
   let heatReleased = 0;
 
   for (let i = 0; i < store.count; i++) {
@@ -71,7 +70,14 @@ export function applyShockDissipation(
       const dy = store.positionY[j] - store.positionY[i];
       const dz = store.positionZ[j] - store.positionZ[i];
       const separationSquared = dx * dx + dy * dy + dz * dz;
-      if (separationSquared === 0 || separationSquared > reachSquared) continue;
+      if (separationSquared === 0) continue;
+
+      const smoothingI = store.smoothingLength[i];
+      const smoothingJ = store.smoothingLength[j];
+      const localScale =
+        smoothingI > 0 && smoothingJ > 0 ? 0.5 * (smoothingI + smoothingJ) : fallbackSpacing;
+      const reachDistance = settings.reach * localScale;
+      if (separationSquared > reachDistance * reachDistance) continue;
 
       const separation = Math.sqrt(separationSquared);
       const towardsX = dx / separation;

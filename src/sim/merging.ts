@@ -4,6 +4,18 @@ import { ParticleKind, type ParticleStore } from "./particles";
 
 export type MergeRule = "momentum-conserving" | "unweighted-average";
 
+export interface SinkSettings {
+  enabled: boolean;
+  density: number;
+  accretionFraction: number;
+}
+
+export const sinksDisabled: SinkSettings = {
+  enabled: false,
+  density: Infinity,
+  accretionFraction: 0,
+};
+
 export interface MergeOutcome {
   mergeEvents: number;
   particlesAbsorbed: number;
@@ -38,8 +50,24 @@ class DisjointSets {
   }
 }
 
-function groupTouchingParticles(store: ParticleStore): Map<number, number[]> | null {
-  const { count, kind, radius, positionX, positionY, positionZ } = store;
+function accretionRadii(store: ParticleStore, sink: SinkSettings): Float64Array {
+  const radii = new Float64Array(store.count);
+  for (let i = 0; i < store.count; i++) {
+    const isCore =
+      sink.enabled && store.smoothingLength[i] > 0 && store.density[i] >= sink.density;
+    radii[i] = isCore
+      ? Math.max(store.radius[i], sink.accretionFraction * store.smoothingLength[i])
+      : store.radius[i];
+  }
+  return radii;
+}
+
+function groupTouchingParticles(
+  store: ParticleStore,
+  sink: SinkSettings,
+): Map<number, number[]> | null {
+  const { count, kind, positionX, positionY, positionZ } = store;
+  const radius = accretionRadii(store, sink);
   const sets = new DisjointSets(count);
   let anyContact = false;
 
@@ -77,6 +105,7 @@ export function mergeTouchingParticles(
   store: ParticleStore,
   rule: MergeRule,
   softeningLength: number,
+  sink: SinkSettings,
 ): MergeOutcome {
   const outcome: MergeOutcome = {
     mergeEvents: 0,
@@ -84,7 +113,7 @@ export function mergeTouchingParticles(
     heatReleased: 0,
     bindingEnergyAbsorbed: 0,
   };
-  const groups = groupTouchingParticles(store);
+  const groups = groupTouchingParticles(store, sink);
   if (!groups) return outcome;
 
   const blendedComposition = new Float64Array(ELEMENT_COUNT);

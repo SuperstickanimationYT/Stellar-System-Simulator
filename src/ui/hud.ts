@@ -33,6 +33,9 @@ export class Hud {
   private readonly largest = requireElement("readout-largest");
   private readonly mass = requireElement("readout-mass");
   private readonly merges = requireElement("readout-merges");
+  private readonly protostars = requireElement("readout-protostars");
+  private readonly peakTemperature = requireElement("readout-peak-temperature");
+  private readonly peakDensity = requireElement("readout-peak-density");
   private readonly flattening = requireElement("readout-flattening");
   private readonly heat = requireElement("readout-heat");
   private readonly timestep = requireElement("readout-timestep");
@@ -49,6 +52,13 @@ export class Hud {
     this.largest.textContent = formatMass(now.largestMass);
     this.mass.textContent = formatMass(now.totalMass);
     this.merges.textContent = String(totalMerges);
+    this.protostars.textContent = String(now.fusingCount);
+    this.peakTemperature.textContent =
+      now.peakTemperature > 0 ? `${now.peakTemperature.toPrecision(3)} K` : "off";
+    this.peakDensity.textContent =
+      simulation.settings.sink.density > 0 && now.peakDensity > 0
+        ? (now.peakDensity / simulation.settings.sink.density).toPrecision(3)
+        : "off";
     this.timestep.textContent = formatDuration(simulation.lastTimestep);
 
     this.flattening.textContent = Number.isFinite(now.flattening)

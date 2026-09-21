@@ -4,6 +4,7 @@ import { ParticleKind, type ParticleStore } from "./particles";
 export function accumulateGravitationalAcceleration(
   store: ParticleStore,
   softeningLength: number,
+  softenBySmoothingLength = false,
 ): void {
   const {
     count,
@@ -12,6 +13,7 @@ export function accumulateGravitationalAcceleration(
     positionX,
     positionY,
     positionZ,
+    smoothingLength,
     accelerationX,
     accelerationY,
     accelerationZ,
@@ -37,7 +39,11 @@ export function accumulateGravitationalAcceleration(
       const dy = positionY[j] - yi;
       const dz = positionZ[j] - zi;
 
-      const separationSquared = dx * dx + dy * dy + dz * dz + softeningSquared;
+      const pairSoftening = softenBySmoothingLength
+        ? 0.5 * (smoothingLength[i] + smoothingLength[j])
+        : 0;
+      const separationSquared =
+        dx * dx + dy * dy + dz * dz + softeningSquared + pairSoftening * pairSoftening;
       if (separationSquared === 0) continue;
 
       const inverseCube =

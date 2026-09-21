@@ -1,4 +1,4 @@
-import { ASTRONOMICAL_UNIT, PARSEC } from "../sim/constants";
+import { ASTRONOMICAL_UNIT, HYDROGEN_FUSION_THRESHOLD, PARSEC } from "../sim/constants";
 import { ParticleKind, type ParticleStore } from "../sim/particles";
 import type { OrbitCamera } from "./camera";
 import { swatchForMassRatio } from "./palette";
@@ -61,7 +61,12 @@ export class Renderer {
 
       const screenX = centreX + (x * camera.rightX + y * camera.rightY + z * camera.rightZ) * scale;
       const screenY = centreY - (x * camera.upX + y * camera.upY + z * camera.upZ) * scale;
-      const drawnRadius = Math.max(MINIMUM_DRAWN_RADIUS * ratio, store.radius[index] * scale);
+      const mass = store.mass[index];
+      const massRatio = mass / referenceMass;
+      const drawnRadius = Math.max(
+        MINIMUM_DRAWN_RADIUS * ratio * Math.cbrt(Math.max(1, massRatio)),
+        store.radius[index] * scale,
+      );
 
       if (
         screenX + drawnRadius < 0 ||
@@ -72,18 +77,19 @@ export class Renderer {
         continue;
       }
 
-      const swatch = swatchForMassRatio(store.mass[index] / referenceMass);
+      const swatch = swatchForMassRatio(massRatio);
+      const isFusing = mass >= HYDROGEN_FUSION_THRESHOLD;
 
-      if (drawnRadius > HALO_THRESHOLD_PIXELS * ratio) {
-        context.globalAlpha = 0.14;
-        context.fillStyle = swatch;
+      if (isFusing || drawnRadius > HALO_THRESHOLD_PIXELS * ratio) {
+        context.globalAlpha = isFusing ? 0.3 : 0.14;
+        context.fillStyle = isFusing ? "#ffd9a0" : swatch;
         context.beginPath();
-        context.arc(screenX, screenY, drawnRadius * 2.6, 0, Math.PI * 2);
+        context.arc(screenX, screenY, drawnRadius * (isFusing ? 4 : 2.6), 0, Math.PI * 2);
         context.fill();
         context.globalAlpha = 1;
       }
 
-      context.fillStyle = swatch;
+      context.fillStyle = isFusing ? "#fff6e0" : swatch;
       context.beginPath();
       context.arc(screenX, screenY, drawnRadius, 0, Math.PI * 2);
       context.fill();

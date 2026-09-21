@@ -25,6 +25,10 @@ export class ParticleStore {
   radius: Float64Array;
   thermalEnergy: Float64Array;
   bindingEnergy: Float64Array;
+  density: Float64Array;
+  pressure: Float64Array;
+  temperature: Float64Array;
+  smoothingLength: Float64Array;
   positionX: Float64Array;
   positionY: Float64Array;
   positionZ: Float64Array;
@@ -47,6 +51,10 @@ export class ParticleStore {
     this.radius = new Float64Array(this.capacity);
     this.thermalEnergy = new Float64Array(this.capacity);
     this.bindingEnergy = new Float64Array(this.capacity);
+    this.density = new Float64Array(this.capacity);
+    this.pressure = new Float64Array(this.capacity);
+    this.temperature = new Float64Array(this.capacity);
+    this.smoothingLength = new Float64Array(this.capacity);
     this.positionX = new Float64Array(this.capacity);
     this.positionY = new Float64Array(this.capacity);
     this.positionZ = new Float64Array(this.capacity);
@@ -74,6 +82,10 @@ export class ParticleStore {
     this.radius[index] = kind === ParticleKind.Matter ? this.radiusForMass(spec.mass) : 0;
     this.thermalEnergy[index] = spec.thermalEnergy ?? 0;
     this.bindingEnergy[index] = spec.bindingEnergy ?? 0;
+    this.density[index] = 0;
+    this.pressure[index] = 0;
+    this.temperature[index] = 0;
+    this.smoothingLength[index] = 0;
     this.positionX[index] = spec.position[0];
     this.positionY[index] = spec.position[1];
     this.positionZ[index] = spec.position[2];
@@ -113,6 +125,10 @@ export class ParticleStore {
     this.radius[to] = this.radius[from];
     this.thermalEnergy[to] = this.thermalEnergy[from];
     this.bindingEnergy[to] = this.bindingEnergy[from];
+    this.density[to] = this.density[from];
+    this.pressure[to] = this.pressure[from];
+    this.temperature[to] = this.temperature[from];
+    this.smoothingLength[to] = this.smoothingLength[from];
     this.positionX[to] = this.positionX[from];
     this.positionY[to] = this.positionY[from];
     this.positionZ[to] = this.positionZ[from];
@@ -145,6 +161,10 @@ export class ParticleStore {
     this.radius = widen(this.radius);
     this.thermalEnergy = widen(this.thermalEnergy);
     this.bindingEnergy = widen(this.bindingEnergy);
+    this.density = widen(this.density);
+    this.pressure = widen(this.pressure);
+    this.temperature = widen(this.temperature);
+    this.smoothingLength = widen(this.smoothingLength);
     this.positionX = widen(this.positionX);
     this.positionY = widen(this.positionY);
     this.positionZ = widen(this.positionZ);

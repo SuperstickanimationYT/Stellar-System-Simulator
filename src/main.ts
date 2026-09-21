@@ -29,6 +29,7 @@ const seedInput = requireElement<HTMLInputElement>("seed");
 const seedValue = requireElement("seed-value");
 const dissipationInput = requireElement<HTMLInputElement>("dissipation");
 const dissipationValue = requireElement("dissipation-value");
+const gasPressureToggle = requireElement<HTMLInputElement>("gas-pressure");
 
 function dissipationTimescaleFor(cloud: SimulationSettings["cloud"]): number {
   const multiple = Number(dissipationInput.value);
@@ -42,6 +43,8 @@ function restart(): void {
   settings.cloud.particleCount = Number(particleCountInput.value);
   settings.cloud.seed = Number(seedInput.value);
   settings.dissipation.timescale = dissipationTimescaleFor(settings.cloud);
+  settings.gas.enabled = gasPressureToggle.checked;
+  settings.sink.density = 0;
   simulation = new Simulation(settings);
   totalMerges = 0;
 }
@@ -73,6 +76,10 @@ particleCountInput.addEventListener("input", () => {
 
 seedInput.addEventListener("input", () => {
   seedValue.textContent = seedInput.value;
+});
+
+gasPressureToggle.addEventListener("change", () => {
+  simulation.settings.gas.enabled = gasPressureToggle.checked;
 });
 
 dissipationInput.addEventListener("input", () => {

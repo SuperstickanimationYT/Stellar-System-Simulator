@@ -64,6 +64,8 @@
 
       label { display: block; margin-bottom: 10px; color: var(--ink-dim); }
       label span { float: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+      label.switch { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+      label.switch input { accent-color: var(--accent); margin: 0; }
       input[type="range"] { width: 100%; margin-top: 5px; accent-color: var(--accent); }
       select {
         width: 100%;
@@ -93,6 +95,9 @@
         <dt>largest</dt><dd id="readout-largest">0</dd>
         <dt>total mass</dt><dd id="readout-mass">0</dd>
         <dt>merges</dt><dd id="readout-merges">0</dd>
+        <dt>protostars</dt><dd id="readout-protostars">0</dd>
+        <dt>peak T</dt><dd id="readout-peak-temperature">0</dd>
+        <dt>peak &#961; / sink</dt><dd id="readout-peak-density">0</dd>
         <dt>flattening</dt><dd id="readout-flattening">0</dd>
         <dt>heat / |W&#8320;|</dt><dd id="readout-heat">0</dd>
         <dt>timestep</dt><dd id="readout-timestep">0</dd>
@@ -107,6 +112,10 @@
 
       <label for="steps-per-frame">steps / frame <span id="steps-per-frame-value">64</span>
         <input id="steps-per-frame" type="range" min="1" max="256" step="1" value="64" />
+      </label>
+
+      <label class="switch" for="gas-pressure">
+        <input id="gas-pressure" type="checkbox" checked /> gas pressure (SPH)
       </label>
 
       <label for="dissipation">shock dissipation <span id="dissipation-value">off</span>
