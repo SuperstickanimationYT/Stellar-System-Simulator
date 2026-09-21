@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stellar system simulator</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: rgba(12, 16, 26, 0.82);
+        --edge: rgba(120, 145, 190, 0.22);
+        --ink: #dbe4f5;
+        --ink-dim: #8b9ab5;
+        --accent: #6fa8ff;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #05070d;
+        color: var(--ink);
+        font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        overflow: hidden;
+      }
+
+      #viewport { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+      #viewport.dragging { cursor: grabbing; }
+
+      #panel {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        width: 268px;
+        padding: 14px 16px;
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        background: var(--panel);
+        backdrop-filter: blur(8px);
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+      }
+
+      h1 { margin: 0 0 12px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
+
+      .readouts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin-bottom: 14px; }
+      .readouts dt { color: var(--ink-dim); }
+      .readouts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+      .buttons { display: flex; gap: 8px; margin-bottom: 12px; }
+
+      button {
+        flex: 1;
+        padding: 7px 10px;
+        border: 1px solid var(--edge);
+        border-radius: 6px;
+        background: rgba(110, 140, 200, 0.14);
+        color: var(--ink);
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover { background: rgba(110, 140, 200, 0.26); border-color: var(--accent); }
+
+      label { display: block; margin-bottom: 10px; color: var(--ink-dim); }
+      label span { float: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+      input[type="range"] { width: 100%; margin-top: 5px; accent-color: var(--accent); }
+      select {
+        width: 100%;
+        margin-top: 5px;
+        padding: 5px 6px;
+        border: 1px solid var(--edge);
+        border-radius: 6px;
+        background: rgba(110, 140, 200, 0.14);
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .note { margin: 12px 0 0; color: var(--ink-dim); font-size: 11.5px; line-height: 1.5; }
+      .section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--edge); }
+    </style>
+  </head>
+  <body>
+    <canvas id="viewport"></canvas>
+
+    <div id="panel">
+      <h1>Collapsing hydrogen cloud</h1>
+
+      <dl class="readouts">
+        <dt>time</dt><dd id="readout-time">0</dd>
+        <dt>particles</dt><dd id="readout-count">0</dd>
+        <dt>largest</dt><dd id="readout-largest">0</dd>
+        <dt>total mass</dt><dd id="readout-mass">0</dd>
+        <dt>merges</dt><dd id="readout-merges">0</dd>
+        <dt>timestep</dt><dd id="readout-timestep">0</dd>
+        <dt>energy drift</dt><dd id="readout-energy">0</dd>
+        <dt>|L| / |L&#8320;|</dt><dd id="readout-angular">0</dd>
+      </dl>
+
+      <div class="buttons">
+        <button id="toggle-running" type="button">Pause</button>
+        <button id="reset" type="button">Reset</button>
+      </div>
+
+      <label for="steps-per-frame">steps / frame <span id="steps-per-frame-value">16</span>
+        <input id="steps-per-frame" type="range" min="1" max="256" step="1" value="16" />
+      </label>
+
+      <label for="merge-rule">merge rule
+        <select id="merge-rule">
+          <option value="momentum-conserving">momentum conserving</option>
+          <option value="unweighted-average">unweighted average</option>
+        </select>
+      </label>
+
+      <div class="section">
+        <label for="rotation">rotation &#946; = T&#8339;&#8338;&#8348;/|W| <span id="rotation-value">0.020</span>
+          <input id="rotation" type="range" min="0" max="0.2" step="0.005" value="0.02" />
+        </label>
+
+        <label for="particle-count">particles <span id="particle-count-value">100</span>
+          <input id="particle-count" type="range" min="10" max="600" step="10" value="100" />
+        </label>
+
+        <label for="seed">seed <span id="seed-value">42</span>
+          <input id="seed" type="range" min="1" max="100" step="1" value="42" />
+        </label>
+
+        <p class="note">Cloud settings apply on Reset. Drag to orbit, scroll to zoom, space to pause.</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
