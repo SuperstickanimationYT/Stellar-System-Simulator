@@ -1,11 +1,12 @@
 # Stellar system simulator
 
-A diffuse cloud of hydrogen particles collapses under its own gravity. Particles that touch
-combine into one. The cloud carries a small amount of rotation that the collapse amplifies.
+A rotating cloud of hydrogen collapses under its own gravity. Particles that touch combine into
+one. At the default settings the cloud is a solar mass in 0.1 parsec, and the body that grows at
+the centre passes the hydrogen fusion threshold after about a million years.
 
-This is the first version. It runs gravity and merging only. Composition is tracked per particle
-and carried through every merge, but nothing reads it yet. Photons, temperature and fusion have
-places to attach and are not implemented.
+It runs gravity, merging and shock dissipation. Composition is tracked per particle and carried
+through every merge, but nothing reads it yet. Photons, temperature and fusion have places to
+attach and are not implemented.
 
 ## Running it
 
@@ -30,13 +31,12 @@ into `dist/`.
 ## The model
 
 Everything is SI internally. Kilograms, metres, seconds. `src/sim/constants.ts` holds the
-conversions to Earth masses, astronomical units and years, which is all the display layer uses.
+conversions to Earth, Jupiter and solar masses, astronomical units, parsecs and years, which is
+all the display layer uses.
 
 Gravity is a direct pairwise inverse square sum over every pair, in `src/sim/gravity.ts`. There is
 a `softeningLength` setting that replaces the squared separation with `r² + ε²`, and it defaults
-to 0, so the force is exactly inverse square. Softening changed the answer by under three parts in
-a thousand at these densities, so it is there for when particles get much smaller rather than
-because the current setup needs it.
+to 0, so the force is exactly inverse square.
 
 A velocity Verlet integrator advances the system. The timestep adapts to the worst particle each
 step, taking the smaller of `safety·√(radius/acceleration)` and `safety·radius/speed`. The second
@@ -59,14 +59,13 @@ at the default settings:
 
 | Merge rule | net momentum, as a fraction of M·v_ff | energy drift | L / L₀ |
 | --- | --- | --- | --- |
-| momentum conserving | 7.5e-15 | -1.2% | 0.989 |
-| unweighted average | 2.1e-1 | +66.9% | 1.571 |
+| momentum conserving | 2.7e-15 | +0.27% | 1.001 |
+| unweighted average | 1.1e-1 | +0.02% | 0.235 |
 
-Unweighted averaging invents a bulk drift worth 21% of the cloud's virial speed out of nothing,
-inflates total energy by two thirds and grows angular momentum by half. So the default is the mass
-weighted version: total mass adds, position becomes the centre of mass, velocity conserves
-momentum, and composition is the mass weighted blend, which is also the only blend that conserves
-the mass of each element.
+Unweighted averaging invents a bulk drift worth 11% of the cloud's virial speed out of nothing and
+destroys three quarters of the angular momentum. So the default is the mass weighted version:
+total mass adds, position becomes the centre of mass, velocity conserves momentum, and composition
+is the mass weighted blend, which is also the only blend that conserves the mass of each element.
 
 ### Where the merged energy goes
 
@@ -79,8 +78,35 @@ heat is the part that sets a temperature.
 
 Orbital angular momentum is not conserved by a merge. Two particles spiralling together carry
 angular momentum about their common centre that has nowhere to go, because particles have no spin.
-That is the single largest approximation in the model and it is why the angular momentum ratio
-decays late in a run while energy stays flat.
+That is the single largest approximation in the model.
+
+### Shock dissipation, and what it does not do
+
+`src/sim/dissipation.ts` damps the approach velocity of neighbouring particles, which is what a
+shock does to gas. Each impulse acts along the line joining the pair and is equal and opposite, so
+linear momentum and angular momentum are both conserved exactly rather than approximately, and
+only approaching pairs are damped, so ordered shear survives. The kinetic energy removed is banked
+as `thermalEnergy`, leaving the energy ledger closed. The neighbourhood is `reach` multiples of the
+mean interparticle spacing, recomputed each step so it shrinks as the cloud collapses.
+
+It defaults to off, because on its own it does not do the thing dissipation is supposed to do.
+
+Real clouds form thin disks because infalling gas shocks against the growing disk, converting
+infall energy to heat that is then radiated away, so material settles with almost nothing left but
+its angular momentum. That chain needs pressure, because pressure is what stops the gas and
+creates the shock in the first place. This model has no pressure. Nothing stops infall, so there
+is no shock surface, and pairwise damping only ever sees the small velocity differences between
+neighbours that are falling inward together.
+
+Measured, across `reach` from 2.5 to 12 and dissipation timescales from 1 down to 0.1 free-fall
+times, flattening stays between 1.0 and 1.55 while the banked heat ranges over a factor of twelve.
+More dissipation does not produce a disk. It mostly makes neighbours stick together and merge
+sooner, which costs resolution.
+
+So the module is the shock heating half of a chain whose other halves are missing. It is worth
+having because it fills `thermalEnergy`, which is what temperature and fusion will read, and
+because it becomes correct as soon as pressure exists. Turn it on to watch heat accumulate. Do not
+expect a disk from it.
 
 ### Initial conditions
 
@@ -94,68 +120,83 @@ works out to Ω = √(3GMβ/R³), and the virial check confirms it: the simulati
 
 ## What happens at the defaults
 
-100 particles of one Earth mass each, pure hydrogen, in a 100 AU sphere with β = 0.02. The
-free-fall time is 10.2 kyr.
+One solar mass in a sphere of 0.1 pc, which is 20,626 AU. That is a mean number density of
+4.2×10³ cm⁻³ and a free-fall time of 0.524 Myr, which is an ordinary dense core. Split across 100
+particles it is 10.48 Jupiter masses each, at a radius of 7.08 AU.
 
-| time | particles | largest | energy drift | L / L₀ | flattening |
+| time | particles | largest | flattening | energy drift | L / L₀ |
 | --- | --- | --- | --- | --- | --- |
-| 1 t_ff | 71 | 5 M⊕ | +0.02% | 0.9996 | 2.23 |
-| 2 t_ff | 47 | 18 M⊕ | -1.01% | 0.9965 | 1.50 |
-| 4 t_ff | 38 | 32 M⊕ | -1.23% | 0.9888 | 1.45 |
-| 8 t_ff | 36 | 50 M⊕ | -1.26% | 0.9169 | 1.43 |
+| 1 t_ff | 84 | 0.050 M☉ | 2.00 | +0.12% | 1.0009 |
+| 2 t_ff | 80 | 0.050 M☉ | 1.47 | +0.14% | 1.0017 |
+| 4 t_ff | 72 | 0.180 M☉ | 1.40 | +0.27% | 1.0005 |
+| 8 t_ff | 68 | 0.240 M☉ | 1.32 | +0.24% | 0.9979 |
+
+The largest body crosses the 0.08 M☉ hydrogen fusion threshold at 2.1 free-fall times, about 1.1
+Myr, and reaches 0.24 M☉ by eight. Mass is exact to roundoff and net momentum stays at machine
+zero throughout.
 
 Flattening is the ratio of the mass weighted RMS radius in the rotation plane to the RMS extent
-along the axis. It peaks near one free-fall time, which is the rotation being amplified by the
-collapse, then relaxes.
+along the angular momentum axis. It peaks at 2.0 near one free-fall time and then relaxes.
 
-After the bounce the cloud expands well past its starting radius and throws particles out beyond
-400 AU. That is real behaviour for a hundred point masses with no gas pressure and nothing to
-radiate energy away, not a bug. The system violently relaxes, a bound core keeps growing, and
-everything else evaporates. Zoom out to follow it, or raise β, which holds the cloud together
-better and keeps the flattening above 2.
+Two things worth being clear about. A ratio of 2 is an oblate spheroid, not a disk; real
+protoplanetary disks are nearer 100 to 1, and the section above explains why this model cannot
+reach that. And after the bounce the cloud expands past its starting radius and throws particles
+out. That is correct for a hundred point masses with no pressure and nothing to radiate energy
+away. The system violently relaxes, a bound core keeps growing, and the rest evaporates.
 
 ## Tuning
 
-Everything lives in `defaultSettings` in `src/sim/simulation.ts`. The panel edits β, particle
-count and seed, and applies them on reset.
+Everything lives in `defaultSettings` in `src/sim/simulation.ts`. The panel edits the dissipation
+timescale and merge rule live, and β, particle count and seed on reset. Particle count is a
+resolution control: total mass is held fixed, so more particles means finer sampling rather than
+more matter.
 
 `bulkDensity` is the one to reach for first, because it sets particle radius and therefore how
-collisional the cloud is, and the model is very sensitive to it. At 1e-11 kg/m³ the particles are
-3.5 AU across and the entire cloud merges into a single body within 1.5 free-fall times. At 1e-6
-barely anything merges. The default of 1e-7 gives a 0.16 AU radius, which is the range where the
-cloud survives long enough for rotation to do something visible.
+collisional the cloud is. At 4e-11 the particles are 33 AU across, collisions dominate, and only
+40 of the original 100 survive four free-fall times. At 4e-8 they are 3.3 AU and 82 survive. The
+default of 4e-9 gives 7.08 AU, which keeps 72 and holds angular momentum best.
 
 ## Adding photons, temperature and fusion
 
-`ParticleKind` already distinguishes `Matter` from `Photon`, and gravity, merging and the
-diagnostics all skip anything that is not `Matter`. The integrator kicks only matter and drifts
-everything, so a photon added today would already move in a straight line at whatever velocity it
-was given, and would neither attract nor merge.
+`ParticleKind` already distinguishes `Matter` from `Photon`, and gravity, merging, dissipation and
+the diagnostics all skip anything that is not `Matter`. The integrator kicks only matter and
+drifts everything, so a photon added today would already move in a straight line at whatever
+velocity it was given, and would neither attract nor merge.
 
-`thermalEnergy` accumulates the heat from every merge and nothing consumes it yet. Turning it into
-a temperature needs a heat capacity, which needs the composition, which is already tracked.
+`thermalEnergy` accumulates heat from merges and from shock dissipation, and nothing consumes it
+yet. Turning it into a temperature needs a heat capacity, which needs the composition, which is
+already tracked.
 
 `src/sim/elements.ts` holds ten elements from hydrogen to iron with mass fractions per particle.
-Fusion means moving fractions along that list and emitting photons, both on the particle that the
-`Simulation.step` loop already walks.
+`HYDROGEN_FUSION_THRESHOLD` and `DEUTERIUM_FUSION_THRESHOLD` in `constants.ts` are the masses that
+matter. Fusion means moving fractions along the element list and emitting photons, both on the
+particle that the `Simulation.step` loop already walks.
 
-The cost of a step is quadratic in particle count, from the gravity sum and the contact search.
-That is fine for the hundreds of particles this version runs. A cloud large enough to need photons
-will need a Barnes-Hut tree for gravity and a spatial grid for contacts, and both fit behind the
-existing function signatures.
+The order to build these in is not the obvious one. Pressure should come before radiative cooling,
+because without pressure there is no shock for cooling to act on, and cooling alone demonstrably
+does not flatten anything. Pressure should also come before fusion, because a star is a ball held
+up by pressure against gravity, and a fusing body with no pressure has no reason to stop
+collapsing. Pressure also gives a real Jeans criterion, so clouds would collapse only when they
+actually should, instead of always.
+
+The cost of a step is quadratic in particle count, from the gravity sum, the contact search and
+the dissipation pass. That is fine for the hundreds of particles this version runs. A cloud large
+enough to need photons will need a Barnes-Hut tree for gravity and a spatial grid for the pair
+searches, and both fit behind the existing function signatures.
 
 ## Layout
 
 ```
 src/sim/                physics, no DOM
-  constants.ts          SI constants and unit conversions
+  constants.ts          SI constants, unit conversions, fusion thresholds
   elements.ts           element table and composition helpers
   particles.ts          ParticleStore, typed arrays, add and remove
   gravity.ts            pairwise inverse square accelerations
   merging.ts            contact grouping and the merge rules
+  dissipation.ts        pairwise shock damping of approaching neighbours
   simulation.ts         velocity Verlet, adaptive timestep, step order
-  initialConditions.ts  seeded rotating cloud
-  diagnostics.ts        energy, momentum, angular momentum
+  initialConditions.ts  seeded rotating cloud, free-fall time
+  diagnostics.ts        energy, momentum, angular momentum, flattening
 src/render/             orbit camera, canvas drawing, mass palette
 src/ui/                 readouts
 src/main.ts             wiring, input, animation loop

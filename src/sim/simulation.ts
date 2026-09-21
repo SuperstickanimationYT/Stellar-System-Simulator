@@ -1,7 +1,8 @@
-import { ASTRONOMICAL_UNIT, EARTH_MASS } from "./constants";
+import { PARSEC, SOLAR_MASS } from "./constants";
 import { measure, type Diagnostics } from "./diagnostics";
+import { applyShockDissipation, type DissipationSettings } from "./dissipation";
 import { accumulateGravitationalAcceleration } from "./gravity";
-import { buildRotatingCloud, type CloudSpec } from "./initialConditions";
+import { buildRotatingCloud, freeFallTime, type CloudSpec } from "./initialConditions";
 import { mergeTouchingParticles, type MergeOutcome, type MergeRule } from "./merging";
 import { ParticleKind, type ParticleStore } from "./particles";
 
@@ -12,27 +13,32 @@ export interface SimulationSettings {
   minimumTimestep: number;
   maximumTimestep: number;
   mergeRule: MergeRule;
+  dissipation: DissipationSettings;
 }
 
+const defaultCloud: CloudSpec = {
+  particleCount: 100,
+  totalMass: SOLAR_MASS,
+  cloudRadius: 0.1 * PARSEC,
+  bulkDensity: 4e-9,
+  rotationalEnergyFraction: 0.02,
+  material: "H",
+  seed: 42,
+};
+
 export const defaultSettings: SimulationSettings = {
-  cloud: {
-    particleCount: 100,
-    particleMass: EARTH_MASS,
-    cloudRadius: 100 * ASTRONOMICAL_UNIT,
-    bulkDensity: 1e-7,
-    rotationalEnergyFraction: 0.02,
-    material: "H",
-    seed: 42,
-  },
+  cloud: defaultCloud,
   softeningLength: 0,
   timestepSafety: 0.05,
-  minimumTimestep: 1e4,
-  maximumTimestep: 2e7,
+  minimumTimestep: 5e5,
+  maximumTimestep: 1e9,
   mergeRule: "momentum-conserving",
+  dissipation: { timescale: Infinity, reach: 2.5 },
 };
 
 export interface StepReport extends MergeOutcome {
   timestep: number;
+  dissipatedHeat: number;
 }
 
 export class Simulation {
@@ -40,10 +46,12 @@ export class Simulation {
   elapsedTime = 0;
   stepsTaken = 0;
   lastTimestep = 0;
+  readonly freeFallTime: number;
   readonly initialDiagnostics: Diagnostics;
 
   constructor(readonly settings: SimulationSettings) {
     this.store = buildRotatingCloud(settings.cloud);
+    this.freeFallTime = freeFallTime(settings.cloud);
     accumulateGravitationalAcceleration(this.store, settings.softeningLength);
     this.initialDiagnostics = this.measure();
   }
@@ -83,7 +91,7 @@ export class Simulation {
 
   step(): StepReport {
     const { store } = this;
-    const { softeningLength, mergeRule } = this.settings;
+    const { softeningLength, mergeRule, dissipation } = this.settings;
     const timestep = this.chooseTimestep();
     const halfStep = 0.5 * timestep;
 
@@ -92,6 +100,7 @@ export class Simulation {
     accumulateGravitationalAcceleration(store, softeningLength);
     this.applyKick(halfStep);
 
+    const dissipatedHeat = applyShockDissipation(store, timestep, dissipation);
     const outcome = mergeTouchingParticles(store, mergeRule, softeningLength);
     if (outcome.mergeEvents > 0) accumulateGravitationalAcceleration(store, softeningLength);
 
@@ -99,7 +108,7 @@ export class Simulation {
     this.stepsTaken++;
     this.lastTimestep = timestep;
 
-    return { ...outcome, timestep };
+    return { ...outcome, timestep, dissipatedHeat };
   }
 
   private applyKick(halfStep: number): void {

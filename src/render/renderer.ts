@@ -1,4 +1,4 @@
-import { ASTRONOMICAL_UNIT } from "../sim/constants";
+import { ASTRONOMICAL_UNIT, PARSEC } from "../sim/constants";
 import { ParticleKind, type ParticleStore } from "../sim/particles";
 import type { OrbitCamera } from "./camera";
 import { swatchForMassRatio } from "./palette";
@@ -94,36 +94,40 @@ export class Renderer {
 
   private drawScaleBar(width: number, height: number, scale: number, ratio: number): void {
     const context = this.context;
-    const targetPixels = Math.min(width, height) * 0.2;
-    const rawAstronomicalUnits = targetPixels / scale / ASTRONOMICAL_UNIT;
-    const magnitude = 10 ** Math.floor(Math.log10(rawAstronomicalUnits));
+    const targetMetres = (Math.min(width, height) * 0.2) / scale;
+    const unit = targetMetres >= 5000 * ASTRONOMICAL_UNIT
+      ? { length: PARSEC, label: "pc" }
+      : { length: ASTRONOMICAL_UNIT, label: "AU" };
+
+    const targetInUnits = targetMetres / unit.length;
+    const magnitude = 10 ** Math.floor(Math.log10(targetInUnits));
     const steps = [1, 2, 5, 10];
-    const chosen =
-      (steps.find((step) => step * magnitude >= rawAstronomicalUnits * 0.5) ?? 1) * magnitude;
-    const barPixels = chosen * ASTRONOMICAL_UNIT * scale;
+    const chosen = (steps.find((step) => step * magnitude >= targetInUnits * 0.5) ?? 1) * magnitude;
+    const barPixels = chosen * unit.length * scale;
 
     const margin = 18 * ratio;
     const baseline = height - margin;
+    const startX = width - margin - barPixels;
 
     context.strokeStyle = "rgba(200, 215, 240, 0.65)";
     context.fillStyle = "rgba(200, 215, 240, 0.8)";
     context.lineWidth = 1.5 * ratio;
     context.beginPath();
-    context.moveTo(margin, baseline);
-    context.lineTo(margin + barPixels, baseline);
-    context.moveTo(margin, baseline - 5 * ratio);
-    context.lineTo(margin, baseline + 5 * ratio);
-    context.moveTo(margin + barPixels, baseline - 5 * ratio);
-    context.lineTo(margin + barPixels, baseline + 5 * ratio);
+    context.moveTo(startX, baseline);
+    context.lineTo(startX + barPixels, baseline);
+    context.moveTo(startX, baseline - 5 * ratio);
+    context.lineTo(startX, baseline + 5 * ratio);
+    context.moveTo(startX + barPixels, baseline - 5 * ratio);
+    context.lineTo(startX + barPixels, baseline + 5 * ratio);
     context.stroke();
 
     context.font = `${12 * ratio}px ui-monospace, monospace`;
     context.textBaseline = "bottom";
-    context.fillText(`${formatAstronomicalUnits(chosen)} AU`, margin, baseline - 8 * ratio);
+    context.fillText(`${formatScaleLength(chosen)} ${unit.label}`, startX, baseline - 8 * ratio);
   }
 }
 
-function formatAstronomicalUnits(value: number): string {
+function formatScaleLength(value: number): string {
   if (value >= 1) return value.toLocaleString("en-US");
   return value.toPrecision(2);
 }

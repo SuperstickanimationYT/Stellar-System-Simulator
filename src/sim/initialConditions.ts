@@ -4,7 +4,7 @@ import { ParticleStore } from "./particles";
 
 export interface CloudSpec {
   particleCount: number;
-  particleMass: number;
+  totalMass: number;
   cloudRadius: number;
   bulkDensity: number;
   rotationalEnergyFraction: number;
@@ -22,6 +22,18 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+export function particleMassOf(spec: CloudSpec): number {
+  return spec.totalMass / spec.particleCount;
+}
+
+export function meanDensityOf(spec: CloudSpec): number {
+  return spec.totalMass / ((4 / 3) * Math.PI * spec.cloudRadius ** 3);
+}
+
+export function freeFallTime(spec: CloudSpec): number {
+  return Math.sqrt((3 * Math.PI) / (32 * GRAVITATIONAL_CONSTANT * meanDensityOf(spec)));
+}
+
 export function solidBodyRotationRate(
   totalMass: number,
   cloudRadius: number,
@@ -36,6 +48,7 @@ export function buildRotatingCloud(spec: CloudSpec): ParticleStore {
   const random = seededRandom(spec.seed);
   const store = new ParticleStore(spec.bulkDensity, Math.max(256, spec.particleCount * 2));
   const composition = compositionOfPure(spec.material);
+  const particleMass = particleMassOf(spec);
 
   const positions: [number, number, number][] = [];
   let centroidX = 0;
@@ -62,9 +75,8 @@ export function buildRotatingCloud(spec: CloudSpec): ParticleStore {
   centroidY /= spec.particleCount;
   centroidZ /= spec.particleCount;
 
-  const totalMass = spec.particleCount * spec.particleMass;
   const rotationRate = solidBodyRotationRate(
-    totalMass,
+    spec.totalMass,
     spec.cloudRadius,
     spec.rotationalEnergyFraction,
   );
@@ -74,7 +86,7 @@ export function buildRotatingCloud(spec: CloudSpec): ParticleStore {
     const y = rawY - centroidY;
     const z = rawZ - centroidZ;
     store.add({
-      mass: spec.particleMass,
+      mass: particleMass,
       position: [x, y, z],
       velocity: [-rotationRate * y, rotationRate * x, 0],
       composition,

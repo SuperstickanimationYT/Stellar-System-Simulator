@@ -1,6 +1,7 @@
 import { OrbitCamera } from "./render/camera";
 import { Renderer } from "./render/renderer";
 import type { MergeRule } from "./sim/merging";
+import { freeFallTime, particleMassOf } from "./sim/initialConditions";
 import { defaultSettings, Simulation, type SimulationSettings } from "./sim/simulation";
 import { Hud, requireElement } from "./ui/hud";
 
@@ -11,7 +12,7 @@ const hud = new Hud();
 
 let settings: SimulationSettings = structuredClone(defaultSettings);
 let simulation = new Simulation(settings);
-let stepsPerFrame = 16;
+let stepsPerFrame = 64;
 let totalMerges = 0;
 let running = true;
 
@@ -26,6 +27,13 @@ const particleCountInput = requireElement<HTMLInputElement>("particle-count");
 const particleCountValue = requireElement("particle-count-value");
 const seedInput = requireElement<HTMLInputElement>("seed");
 const seedValue = requireElement("seed-value");
+const dissipationInput = requireElement<HTMLInputElement>("dissipation");
+const dissipationValue = requireElement("dissipation-value");
+
+function dissipationTimescaleFor(cloud: SimulationSettings["cloud"]): number {
+  const multiple = Number(dissipationInput.value);
+  return multiple <= 0 ? Infinity : multiple * freeFallTime(cloud);
+}
 
 function restart(): void {
   settings = structuredClone(defaultSettings);
@@ -33,6 +41,7 @@ function restart(): void {
   settings.cloud.rotationalEnergyFraction = Number(rotationInput.value);
   settings.cloud.particleCount = Number(particleCountInput.value);
   settings.cloud.seed = Number(seedInput.value);
+  settings.dissipation.timescale = dissipationTimescaleFor(settings.cloud);
   simulation = new Simulation(settings);
   totalMerges = 0;
 }
@@ -64,6 +73,12 @@ particleCountInput.addEventListener("input", () => {
 
 seedInput.addEventListener("input", () => {
   seedValue.textContent = seedInput.value;
+});
+
+dissipationInput.addEventListener("input", () => {
+  const multiple = Number(dissipationInput.value);
+  dissipationValue.textContent = multiple <= 0 ? "off" : `${multiple.toFixed(1)} t_ff`;
+  simulation.settings.dissipation.timescale = dissipationTimescaleFor(simulation.settings.cloud);
 });
 
 let dragPointerId: number | null = null;
@@ -123,7 +138,7 @@ function frame(): void {
       totalMerges += simulation.step().mergeEvents;
     }
   }
-  renderer.draw(simulation.store, camera, settings.cloud.particleMass);
+  renderer.draw(simulation.store, camera, particleMassOf(simulation.settings.cloud));
   hud.update(simulation, totalMerges);
   requestAnimationFrame(frame);
 }

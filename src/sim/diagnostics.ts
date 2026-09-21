@@ -12,6 +12,7 @@ export interface Diagnostics {
   totalEnergy: number;
   momentumMagnitude: number;
   angularMomentumMagnitude: number;
+  flattening: number;
 }
 
 export function measure(store: ParticleStore, softeningLength: number): Diagnostics {
@@ -30,6 +31,9 @@ export function measure(store: ParticleStore, softeningLength: number): Diagnost
   let angularX = 0;
   let angularY = 0;
   let angularZ = 0;
+  let centreX = 0;
+  let centreY = 0;
+  let centreZ = 0;
 
   for (let i = 0; i < count; i++) {
     if (kind[i] !== ParticleKind.Matter) continue;
@@ -45,6 +49,10 @@ export function measure(store: ParticleStore, softeningLength: number): Diagnost
     thermalEnergy += store.thermalEnergy[i];
     bindingEnergy += store.bindingEnergy[i];
 
+    centreX += m * positionX[i];
+    centreY += m * positionY[i];
+    centreZ += m * positionZ[i];
+
     momentumX += m * vx;
     momentumY += m * vy;
     momentumZ += m * vz;
@@ -52,6 +60,12 @@ export function measure(store: ParticleStore, softeningLength: number): Diagnost
     angularX += m * (positionY[i] * vz - positionZ[i] * vy);
     angularY += m * (positionZ[i] * vx - positionX[i] * vz);
     angularZ += m * (positionX[i] * vy - positionY[i] * vx);
+  }
+
+  if (totalMass > 0) {
+    centreX /= totalMass;
+    centreY /= totalMass;
+    centreZ /= totalMass;
   }
 
   const softeningSquared = softeningLength * softeningLength;
@@ -71,6 +85,7 @@ export function measure(store: ParticleStore, softeningLength: number): Diagnost
   }
 
   return {
+    flattening: measureFlattening(store, centreX, centreY, centreZ, angularX, angularY, angularZ),
     matterCount,
     totalMass,
     largestMass,
@@ -82,4 +97,39 @@ export function measure(store: ParticleStore, softeningLength: number): Diagnost
     momentumMagnitude: Math.hypot(momentumX, momentumY, momentumZ),
     angularMomentumMagnitude: Math.hypot(angularX, angularY, angularZ),
   };
+}
+
+function measureFlattening(
+  store: ParticleStore,
+  centreX: number,
+  centreY: number,
+  centreZ: number,
+  angularX: number,
+  angularY: number,
+  angularZ: number,
+): number {
+  const axisLength = Math.hypot(angularX, angularY, angularZ);
+  if (axisLength === 0) return 1;
+
+  const axisX = angularX / axisLength;
+  const axisY = angularY / axisLength;
+  const axisZ = angularZ / axisLength;
+
+  let withinPlane = 0;
+  let alongAxis = 0;
+
+  for (let i = 0; i < store.count; i++) {
+    if (store.kind[i] !== ParticleKind.Matter) continue;
+    const dx = store.positionX[i] - centreX;
+    const dy = store.positionY[i] - centreY;
+    const dz = store.positionZ[i] - centreZ;
+    const projection = dx * axisX + dy * axisY + dz * axisZ;
+    const mass = store.mass[i];
+
+    alongAxis += mass * projection * projection;
+    withinPlane += mass * (dx * dx + dy * dy + dz * dz - projection * projection);
+  }
+
+  if (alongAxis === 0) return Infinity;
+  return Math.sqrt(withinPlane / 2 / alongAxis);
 }

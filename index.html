@@ -84,14 +84,17 @@
     <canvas id="viewport"></canvas>
 
     <div id="panel">
-      <h1>Collapsing hydrogen cloud</h1>
+      <h1>Collapsing protostellar core</h1>
 
       <dl class="readouts">
         <dt>time</dt><dd id="readout-time">0</dd>
+        <dt>t / t_ff</dt><dd id="readout-freefall">0</dd>
         <dt>particles</dt><dd id="readout-count">0</dd>
         <dt>largest</dt><dd id="readout-largest">0</dd>
         <dt>total mass</dt><dd id="readout-mass">0</dd>
         <dt>merges</dt><dd id="readout-merges">0</dd>
+        <dt>flattening</dt><dd id="readout-flattening">0</dd>
+        <dt>heat / |W&#8320;|</dt><dd id="readout-heat">0</dd>
         <dt>timestep</dt><dd id="readout-timestep">0</dd>
         <dt>energy drift</dt><dd id="readout-energy">0</dd>
         <dt>|L| / |L&#8320;|</dt><dd id="readout-angular">0</dd>
@@ -102,8 +105,12 @@
         <button id="reset" type="button">Reset</button>
       </div>
 
-      <label for="steps-per-frame">steps / frame <span id="steps-per-frame-value">16</span>
-        <input id="steps-per-frame" type="range" min="1" max="256" step="1" value="16" />
+      <label for="steps-per-frame">steps / frame <span id="steps-per-frame-value">64</span>
+        <input id="steps-per-frame" type="range" min="1" max="256" step="1" value="64" />
+      </label>
+
+      <label for="dissipation">shock dissipation <span id="dissipation-value">off</span>
+        <input id="dissipation" type="range" min="0" max="4" step="0.1" value="0" />
       </label>
 
       <label for="merge-rule">merge rule
