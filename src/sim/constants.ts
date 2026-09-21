@@ -1,0 +1,6 @@
+export const GRAVITATIONAL_CONSTANT = 6.6743e-11;
+
+export const EARTH_MASS = 5.9722e24;
+export const SOLAR_MASS = 1.98892e30;
+export const ASTRONOMICAL_UNIT = 1.495978707e11;
+export const SECONDS_PER_YEAR = 3.15576e7;
