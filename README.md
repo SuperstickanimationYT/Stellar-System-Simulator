@@ -17,6 +17,13 @@ startup.
 npm install && npm run dev
 ```
 
+Open the URL that prints. Opening `index.html` from disk cannot work, because the browser would
+have to run TypeScript directly.
+
+If `node_modules` was installed under an older Node, upgrading Node is not enough on its own. npm
+recorded the binary as skipped and will not revisit that, so the same startup error survives the
+upgrade. Delete `node_modules` and install again.
+
 `npm run typecheck` checks types without emitting. `npm run build` typechecks and then bundles
 into `dist/`.
 
